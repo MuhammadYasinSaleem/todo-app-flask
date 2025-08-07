@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+
+      - name: Create .env file for CI
+        run: |
+          cat <<EOF > .env
+          DATABASE_URL=postgresql://flaskuser:flaskpass@postgres_db:5432/flaskdb
+          JWT_SECRET_KEY=ci-secret-key
+          EOF
+
+      - name: Build containers
+        run: |
+          docker-compose build
+
+      - name: Start containers
+        run: |
+          docker-compose up -d
+
+      - name: Wait for DB to be healthy
+        run: |
+          timeout 60s bash -c 'until [ "$(docker inspect -f {{.State.Health.Status}} postgres_db)" == "healthy" ]; do sleep 2; done'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests (placeholder)
+        run: |
+          echo "No tests implemented yet. Add pytest/unittest here."
+
+      - name: Shut down containers
+        if: always()
+        run: |
+          docker-compose down
