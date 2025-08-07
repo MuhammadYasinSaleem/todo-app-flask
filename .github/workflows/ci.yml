@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres_db:
+        image: postgres:13
+        env:
+          POSTGRES_USER: flaskuser
+          POSTGRES_PASSWORD: flaskpass
+          POSTGRES_DB: flaskdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flaskuser" --health-interval=10s --health-timeout=5s --health-retries=5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+
+      - name: Build containers
+        run: |
+          docker-compose build
+
+      - name: Start containers
+        run: |
+          docker-compose up -d
+
+      - name: Wait for DB
+        run: |
+          until docker exec flask_app bash -c 'pg_isready -h postgres_db -U flaskuser'; do sleep 2; done
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests (placeholder)
+        run: |
+          echo "No tests implemented yet. Add pytest/unittest here."
+
+      - name: Shut down containers
+        if: always()
+        run: |
+          docker-compose down
