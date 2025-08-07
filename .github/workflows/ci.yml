@@ -38,9 +38,9 @@ jobs:
         run: |
           docker-compose up -d
 
-      - name: Wait for DB
+      - name: Wait for DB to be healthy
         run: |
-          until docker exec flask_app bash -c 'pg_isready -h postgres_db -U flaskuser'; do sleep 2; done
+          timeout 60s bash -c 'until [ "$(docker inspect -f {{.State.Health.Status}} postgres_db)" == "healthy" ]; do sleep 2; done'
 
       - name: Install dependencies
         run: |
