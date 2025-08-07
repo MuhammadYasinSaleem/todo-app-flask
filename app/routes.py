@@ -77,3 +77,32 @@ class TodoList(Resource):
         } for todo in todos]
 
         return {"todos": result}, 200
+
+# === UPDATE & DELETE TODO ===
+@api.route("/<int:id>")
+class TodoResource(Resource):
+    @api.doc(security='Bearer Auth')
+    @api.expect(todo_model)
+    @token_required
+    def put(current_user, self, id):
+        todo = ToDo.query.filter_by(id=id, user_id=current_user.id).first()
+        if not todo:
+            return {"message": "ToDo not found"}, 404
+        data = request.get_json()
+        todo.title = data.get("title", todo.title)
+        todo.description = data.get("description", todo.description)
+        if data.get("due_date"):
+            todo.due_date = datetime.strptime(data["due_date"], "%Y-%m-%d")
+        todo.is_completed = data.get("is_completed", todo.is_completed)
+        db.session.commit()
+        return {"message": "ToDo updated successfully"}, 200
+
+    @api.doc(security='Bearer Auth')
+    @token_required
+    def delete(current_user, self, id):
+        todo = ToDo.query.filter_by(id=id, user_id=current_user.id).first()
+        if not todo:
+            return {"message": "ToDo not found"}, 404
+        db.session.delete(todo)
+        db.session.commit()
+        return {"message": "ToDo deleted successfully"}, 200
